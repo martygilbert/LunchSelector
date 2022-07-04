@@ -1,0 +1,135 @@
+<?xml version="1.0" ?>
+
+<project name="lunchProgram stuff" default="local-deploy" basedir=".">
+
+        <property name="project.name" value="lunchProgram" />
+
+	<!-- input stuff -->
+        
+        <property name="input.jsp.dir" value="jsp" />
+        <property name="input.javasrc.dir" value="classes" />
+        <property name="input.jars.dir" value="lib" />
+        <property name="input.lib.dir" value="../lib" />
+        <property name="input.xml.dir" value="xml" />
+                
+        <patternset id="input.javasrc.files">
+                <include name="**/*.java" /> <!-- hierarchical, all classes -->
+        </patternset>
+
+        <patternset id="input.classes.files">
+                <include name="**/*.class" /> <!-- hierarchical, all classes -->
+        </patternset>
+
+        <patternset id="input.lib.files">
+                <include name="*.jar" /> <!-- no hierarchy, all jars -->
+        </patternset>
+
+	<!-- output stuff -->
+        
+        <property name="output.main.dir" value="output" />
+        <property name="output.staging.dir" value="${output.main.dir}/staging" />
+        <property name="output.jars.dir" value="${output.main.dir}/jars" />
+        <property name="output.war.file" value="${output.jars.dir}/${project.name}.war" />
+        <property name="output.ear.file" value="${output.jars.dir}/${project.name}.ear" />
+        <property name="output.tomcat.war.dir"  value="/var/lib/tomcat/webapps" />
+
+        <!-- misc settings -->
+
+       	<path id="project.classpath">
+				<fileset dir="${input.jars.dir}">
+					<include name="**/*.jar" />
+				</fileset>
+				<fileset dir="../lib">
+					<include name="**/*.jar"/>
+				</fileset>
+				<fileset dir="${input.lib.dir}">
+					<include name="**/*.jar" />
+				</fileset>
+	         <pathelement location="${output.staging.dir}" />
+        	  	<pathelement location="${input.javasrc.dir}" />
+       	</path>
+
+	<!--  Using 'modern' for jdk1.3, others use 'classic'  --> 
+	<property name="build.compiler" value="modern" />
+
+   <!--  ================================================================ --> 
+   <!--  initialization stuff                                             --> 
+   <!--  ================================================================ --> 
+
+	<target name="init" description="intialization stuff">
+		<mkdir dir="${output.main.dir}" />
+		<mkdir dir="${output.staging.dir}" />
+		<mkdir dir="${output.jars.dir}" />
+                <tstamp />
+	</target>
+
+   <!--  ================================================================ --> 
+   <!--  compile all required java files                                  --> 
+   <!--  ================================================================ --> 
+        
+	<target name="make" depends="init" description="fill staging with classes">
+		<javac destdir="${output.staging.dir}">
+                        <src path="${input.javasrc.dir}" />
+	        	<classpath refid="project.classpath" />
+                        <patternset refid="input.javasrc.files" />
+                </javac>
+	</target>
+
+   <!--  ================================================================ --> 
+   <!--  create .war file                                                 --> 
+   <!--  ================================================================ --> 
+
+	<target name="war" depends="make">
+		<war warfile="${output.war.file}" webxml="${input.xml.dir}/web.xml">
+                        <lib dir="${input.lib.dir}">
+                                <patternset refid="input.lib.files"/>
+                        </lib>
+                        <classes dir="${output.staging.dir}">
+                                <patternset refid="input.classes.files"/>
+                        </classes>
+                        <fileset dir=".">
+                                <include name="${input.jsp.dir}/**" />
+                                <!--<include name="${input.list.dir}/**" />-->
+                        </fileset>
+                </war>
+	</target>
+
+   <!--  ================================================================ --> 
+   <!--  create .ear file                                                 --> 
+   <!--  ================================================================ --> 
+
+	<target name="ear" depends="war">
+		<!-- ugly until ant gets an ear task -->
+		<property name="metainf" value="${output.staging.dir}/META-INF" />
+		<mkdir dir="${metainf}" />
+		<copy file="${input.xml.dir}/application.xml" todir="${metainf}"/>
+		<jar jarfile="${output.ear.file}">
+            <fileset dir="${output.jars.dir}">
+					<include name="${project.name}.war" />
+            </fileset>
+            <fileset dir="${output.staging.dir}">
+            	<include name="META-INF/**" />
+            </fileset>
+      </jar>
+	</target>
+
+   <!--  ================================================================ --> 
+   <!--  MG deploy                                                        --> 
+   <!--  ================================================================ --> 
+
+        <target name="local-deploy" depends="war">
+                <copy file="${output.war.file}"
+                        todir="${output.tomcat.war.dir}" />
+					 <!--<copy file="${select.list.file}"
+					 			todir="${output.tomcat.war.dir}" />-->
+        </target>
+
+   <!--  ================================================================ --> 
+   <!--  Clean up generated stuff                                         --> 
+   <!--  ================================================================ --> 
+
+        <target name="clean" description="Remove output directory">
+                <delete dir="${output.main.dir}" /> 
+        </target>
+
+</project>
